@@ -2,7 +2,7 @@ from typing import *
 
 CONV = 'flex_gemm' 
 DEBUG = False
-ATTN = 'flash_attn'
+ATTN = 'xformers'
 
 def __from_env():
     import os

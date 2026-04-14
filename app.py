@@ -324,20 +324,24 @@ def preprocess_image(image: Image.Image) -> Image.Image:
 
 def pack_state(latents: Tuple[SparseTensor, SparseTensor, int]) -> dict:
     shape_slat, tex_slat, res = latents
+    # Gradio JSON silently drops numpy float16 arrays, so cast to float32
     return {
-        'shape_slat_feats': shape_slat.feats.cpu().numpy(),
-        'tex_slat_feats': tex_slat.feats.cpu().numpy(),
+        'shape_slat_feats': shape_slat.feats.to(torch.float32).cpu().numpy(),
+        'tex_slat_feats': tex_slat.feats.to(torch.float32).cpu().numpy(),
         'coords': shape_slat.coords.cpu().numpy(),
         'res': res,
     }
     
     
 def unpack_state(state: dict) -> Tuple[SparseTensor, SparseTensor, int]:
+    if state is None:
+        raise ValueError("Gradio failed to serialize state! Expected float32 JSON payload.")
+    # Re-cast back to float16 to match the pipeline weights
     shape_slat = SparseTensor(
-        feats=torch.from_numpy(state['shape_slat_feats']).cuda(),
+        feats=torch.from_numpy(state['shape_slat_feats']).to(dtype=torch.float16, device='cuda'),
         coords=torch.from_numpy(state['coords']).cuda(),
     )
-    tex_slat = shape_slat.replace(torch.from_numpy(state['tex_slat_feats']).cuda())
+    tex_slat = shape_slat.replace(torch.from_numpy(state['tex_slat_feats']).to(dtype=torch.float16, device='cuda'))
     return shape_slat, tex_slat, state['res']
 
 

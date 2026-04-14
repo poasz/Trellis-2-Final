@@ -406,6 +406,11 @@ def image_to_3d(
     mesh.simplify(16777216) # nvdiffrast limit
     # images = render_utils.render_snapshot(mesh, resolution=1024, r=2, fov=36, nviews=STEPS, envmap=envmap)
     state = pack_state(latents)
+    
+    import gc
+    del outputs
+    del latents
+    gc.collect()
     torch.cuda.empty_cache()
     
     # --- HTML Construction ---
@@ -498,7 +503,13 @@ def extract_glb(
     os.makedirs(user_dir, exist_ok=True)
     glb_path = os.path.join(user_dir, f'sample_{timestamp}.glb')
     glb.export(glb_path, extension_webp=True)
+    
+    import gc
+    del glb
+    del mesh
+    gc.collect()
     torch.cuda.empty_cache()
+    
     return glb_path, glb_path
 
 

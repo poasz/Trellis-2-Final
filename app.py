@@ -627,7 +627,6 @@ if __name__ == "__main__":
     pipeline = Trellis2ImageTo3DPipeline.from_pretrained('microsoft/TRELLIS.2-4B')
     for model in pipeline.models.values():
         model.half()
-    pipeline.image_cond_model.half()
     pipeline.cuda()
     
     envmap = {

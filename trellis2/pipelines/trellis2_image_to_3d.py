@@ -205,7 +205,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         flow_model = self.models['sparse_structure_flow_model']
         reso = flow_model.resolution
         in_channels = flow_model.in_channels
-        noise = torch.randn(num_samples, in_channels, reso, reso, reso).to(self.device)
+        noise = torch.randn(num_samples, in_channels, reso, reso, reso, dtype=torch.float16).to(self.device)
         sampler_params = {**self.sparse_structure_sampler_params, **sampler_params}
         if self.low_vram:
             flow_model.to(self.device)
@@ -251,7 +251,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         """
         # Sample structured latent
         noise = SparseTensor(
-            feats=torch.randn(coords.shape[0], flow_model.in_channels).to(self.device),
+            feats=torch.randn(coords.shape[0], flow_model.in_channels, dtype=torch.float16).to(self.device),
             coords=coords,
         )
         sampler_params = {**self.shape_slat_sampler_params, **sampler_params}
@@ -296,7 +296,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         """
         # LR
         noise = SparseTensor(
-            feats=torch.randn(coords.shape[0], flow_model_lr.in_channels).to(self.device),
+            feats=torch.randn(coords.shape[0], flow_model_lr.in_channels, dtype=torch.float16).to(self.device),
             coords=coords,
         )
         sampler_params = {**self.shape_slat_sampler_params, **sampler_params}
@@ -340,7 +340,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         
         # Sample structured latent
         noise = SparseTensor(
-            feats=torch.randn(coords.shape[0], flow_model.in_channels).to(self.device),
+            feats=torch.randn(coords.shape[0], flow_model.in_channels, dtype=torch.float16).to(self.device),
             coords=coords,
         )
         sampler_params = {**self.shape_slat_sampler_params, **sampler_params}
@@ -409,7 +409,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         shape_slat = (shape_slat - mean) / std
 
         in_channels = flow_model.in_channels if isinstance(flow_model, nn.Module) else flow_model[0].in_channels
-        noise = shape_slat.replace(feats=torch.randn(shape_slat.coords.shape[0], in_channels - shape_slat.feats.shape[1]).to(self.device))
+        noise = shape_slat.replace(feats=torch.randn(shape_slat.coords.shape[0], in_channels - shape_slat.feats.shape[1], dtype=torch.float16).to(self.device))
         sampler_params = {**self.tex_slat_sampler_params, **sampler_params}
         if self.low_vram:
             flow_model.to(self.device)
@@ -537,7 +537,10 @@ class Trellis2ImageTo3DPipeline(Pipeline):
             image = self.preprocess_image(image)
         torch.manual_seed(seed)
         cond_512 = self.get_cond([image], 512)
+        for k in cond_512: cond_512[k] = cond_512[k].half()
         cond_1024 = self.get_cond([image], 1024) if pipeline_type != '512' else None
+        if cond_1024:
+            for k in cond_1024: cond_1024[k] = cond_1024[k].half()
         ss_res = {'512': 32, '1024': 64, '1024_cascade': 32, '1536_cascade': 32}[pipeline_type]
         coords = self.sample_sparse_structure(
             cond_512, ss_res,

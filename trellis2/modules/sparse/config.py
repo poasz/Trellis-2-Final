@@ -1,6 +1,6 @@
 from typing import *
 
-CONV = 'spconv' 
+CONV = 'flex_gemm' 
 DEBUG = False
 ATTN = 'xformers'
 

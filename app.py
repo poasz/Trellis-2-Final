@@ -630,12 +630,6 @@ if __name__ == "__main__":
         model.half()
     pipeline.cuda()  # With low_vram=True, this only sets _device flag, NOT moving models to GPU
     
-    # Purge HuggingFace download cache to reclaim ~8GB of System RAM
-    import shutil as _shutil
-    hf_cache = os.path.expanduser('~/.cache/huggingface')
-    if os.path.exists(hf_cache):
-        _shutil.rmtree(hf_cache, ignore_errors=True)
-    
     gc.collect()
     torch.cuda.empty_cache()
     

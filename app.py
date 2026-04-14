@@ -476,7 +476,8 @@ def extract_glb(
     """
     user_dir = os.path.join(TMP_DIR, str(req.session_hash))
     shape_slat, tex_slat, res = unpack_state(state)
-    mesh = pipeline.decode_latent(shape_slat, tex_slat, res)[0]
+    with torch.autocast('cuda', dtype=torch.float16):
+        mesh = pipeline.decode_latent(shape_slat, tex_slat, res)[0]
     glb = o_voxel.postprocess.to_glb(
         vertices=mesh.vertices,
         faces=mesh.faces,

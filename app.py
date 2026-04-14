@@ -625,6 +625,9 @@ if __name__ == "__main__":
         MODES[i]['icon_base64'] = image_to_base64(icon)
 
     pipeline = Trellis2ImageTo3DPipeline.from_pretrained('microsoft/TRELLIS.2-4B')
+    for model in pipeline.models.values():
+        model.half()
+    pipeline.image_cond_model.half()
     pipeline.cuda()
     
     envmap = {

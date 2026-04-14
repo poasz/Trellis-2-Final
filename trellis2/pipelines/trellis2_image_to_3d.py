@@ -324,6 +324,13 @@ class Trellis2ImageTo3DPipeline(Pipeline):
         if self.low_vram:
             self.models['shape_slat_decoder'].cpu()
             self.models['shape_slat_decoder'].low_vram = False
+        
+        # Immediate cleanup after upsampling to save System RAM
+        import gc
+        del slat
+        gc.collect()
+        torch.cuda.empty_cache()
+        
         hr_resolution = resolution
         while True:
             quant_coords = torch.cat([
@@ -337,6 +344,11 @@ class Trellis2ImageTo3DPipeline(Pipeline):
                     print(f"Due to the limited number of tokens, the resolution is reduced to {hr_resolution}.")
                 break
             hr_resolution -= 128
+        
+        # Cleanup upsampled coordinates pool before the most memory-intensive stage
+        del hr_coords
+        gc.collect()
+        torch.cuda.empty_cache()
         
         # Sample structured latent
         noise = SparseTensor(
@@ -578,6 +590,7 @@ class Trellis2ImageTo3DPipeline(Pipeline):
                 cond_1024, self.models['tex_slat_flow_model_1024'],
                 shape_slat, tex_slat_sampler_params
             )
+            
         elif pipeline_type == '1536_cascade':
             shape_slat, res = self.sample_shape_slat_cascade(
                 cond_512, cond_1024,
@@ -590,6 +603,13 @@ class Trellis2ImageTo3DPipeline(Pipeline):
                 cond_1024, self.models['tex_slat_flow_model_1024'],
                 shape_slat, tex_slat_sampler_params
             )
+
+        # Final cleanup of heavy intermediate tensors before the high-res decoding stage
+        import gc
+        if 'cond_512' in locals(): del cond_512
+        if 'cond_1024' in locals(): del cond_1024
+        if 'coords' in locals(): del coords
+        gc.collect()
         torch.cuda.empty_cache()
         out_mesh = self.decode_latent(shape_slat, tex_slat, res)
         if return_latent:

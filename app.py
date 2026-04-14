@@ -2,7 +2,8 @@ import gradio as gr
 
 import os
 os.environ['OPENCV_IO_ENABLE_OPENEXR'] = '1'
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+# Aggrresive memory management for Kaggle T4
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,max_split_size_mb:256"
 from datetime import datetime
 import shutil
 import cv2
@@ -625,9 +626,21 @@ if __name__ == "__main__":
 
     import gc
     pipeline = Trellis2ImageTo3DPipeline.from_pretrained('microsoft/TRELLIS.2-4B')
+    
+    # Cast to half but KEEP ON CPU for now
     for model in pipeline.models.values():
         model.half()
-    pipeline.cuda()
+    
+    # Set the target device to CUDA for the low_vram swapping system
+    pipeline._device = torch.device("cuda")
+    
+    # Move only the small conditioning models to GPU permanently
+    if hasattr(pipeline, 'image_cond_model') and pipeline.image_cond_model is not None:
+        pipeline.image_cond_model.cuda().half()
+    
+    # DO NOT call pipeline.cuda() - it would move all 8GB of models at once, 
+    # leaving no room for 1024-res activations in the 16GB VRAM.
+    
     gc.collect()
     torch.cuda.empty_cache()
     

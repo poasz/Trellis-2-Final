@@ -626,23 +626,15 @@ if __name__ == "__main__":
 
     import gc
     pipeline = Trellis2ImageTo3DPipeline.from_pretrained('microsoft/TRELLIS.2-4B')
-    
-    # Cast to half but KEEP ON CPU for now
     for model in pipeline.models.values():
         model.half()
+    pipeline.cuda()  # With low_vram=True, this only sets _device flag, NOT moving models to GPU
     
-    # Set the target device to CUDA for the low_vram swapping system
-    pipeline._device = torch.device("cuda")
-    
-    # Move only the small conditioning models to GPU permanently
-    if hasattr(pipeline, 'image_cond_model') and pipeline.image_cond_model is not None:
-        pipeline.image_cond_model.cuda()
-        # Internal model needs to be cast to half for precision matching
-        if hasattr(pipeline.image_cond_model, 'model'):
-            pipeline.image_cond_model.model.half()
-    
-    # DO NOT call pipeline.cuda() - it would move all 8GB of models at once, 
-    # leaving no room for 1024-res activations in the 16GB VRAM.
+    # Purge HuggingFace download cache to reclaim ~8GB of System RAM
+    import shutil as _shutil
+    hf_cache = os.path.expanduser('~/.cache/huggingface')
+    if os.path.exists(hf_cache):
+        _shutil.rmtree(hf_cache, ignore_errors=True)
     
     gc.collect()
     torch.cuda.empty_cache()

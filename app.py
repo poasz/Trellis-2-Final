@@ -368,8 +368,9 @@ def image_to_3d(
     progress=gr.Progress(track_tqdm=True),
 ) -> str:
     # --- Sampling ---
-    outputs, latents = pipeline.run(
-        image,
+    with torch.autocast('cuda', dtype=torch.float16):
+        outputs, latents = pipeline.run(
+            image,
         seed=seed,
         preprocess_image=False,
         sparse_structure_sampler_params={

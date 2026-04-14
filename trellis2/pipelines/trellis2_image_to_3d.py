@@ -480,6 +480,12 @@ class Trellis2ImageTo3DPipeline(Pipeline):
             resolution (int): The resolution of the output.
         """
         meshes, subs = self.decode_shape_slat(shape_slat, resolution)
+        
+        # Free shape_slat before texture decoding to reduce peak memory
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
+        
         tex_voxels = self.decode_tex_slat(tex_slat, subs)
         out_mesh = []
         for m, v in zip(meshes, tex_voxels):
@@ -586,10 +592,34 @@ class Trellis2ImageTo3DPipeline(Pipeline):
                 coords, shape_slat_sampler_params,
                 max_num_tokens
             )
+            
+            # === MEMORY OPTIMIZATION: Purge shape flow models from CPU RAM ===
+            # They are NEVER used again after shape sampling is complete.
+            import gc
+            del coords
+            self.models['shape_slat_flow_model_512'].cpu()
+            self.models['shape_slat_flow_model_1024'].cpu()
+            del self.models['shape_slat_flow_model_512']
+            del self.models['shape_slat_flow_model_1024']
+            if 'cond_512' in locals(): del cond_512
+            self.models['sparse_structure_flow_model'].cpu()
+            del self.models['sparse_structure_flow_model']
+            self.models['sparse_structure_decoder'].cpu()
+            del self.models['sparse_structure_decoder']
+            gc.collect()
+            torch.cuda.empty_cache()
+            
             tex_slat = self.sample_tex_slat(
                 cond_1024, self.models['tex_slat_flow_model_1024'],
                 shape_slat, tex_slat_sampler_params
             )
+            
+            # === MEMORY OPTIMIZATION: Purge texture flow model & cond from CPU RAM ===
+            self.models['tex_slat_flow_model_1024'].cpu()
+            del self.models['tex_slat_flow_model_1024']
+            if 'cond_1024' in locals(): del cond_1024
+            gc.collect()
+            torch.cuda.empty_cache()
             
         elif pipeline_type == '1536_cascade':
             shape_slat, res = self.sample_shape_slat_cascade(
@@ -604,11 +634,11 @@ class Trellis2ImageTo3DPipeline(Pipeline):
                 shape_slat, tex_slat_sampler_params
             )
 
-        # Final cleanup of heavy intermediate tensors before the high-res decoding stage
+        # Final cleanup of any remaining intermediate tensors before decoding
         import gc
-        if 'cond_512' in locals(): del cond_512
-        if 'cond_1024' in locals(): del cond_1024
-        if 'coords' in locals(): del coords
+        for name in ['cond_512', 'cond_1024', 'coords']:
+            if name in locals():
+                del locals()[name]
         gc.collect()
         torch.cuda.empty_cache()
         out_mesh = self.decode_latent(shape_slat, tex_slat, res)

@@ -479,9 +479,9 @@ def extract_glb(
     with torch.autocast('cuda', dtype=torch.float16):
         mesh = pipeline.decode_latent(shape_slat, tex_slat, res)[0]
     glb = o_voxel.postprocess.to_glb(
-        vertices=mesh.vertices,
+        vertices=mesh.vertices.float(),
         faces=mesh.faces,
-        attr_volume=mesh.attrs,
+        attr_volume=mesh.attrs.float(),
         coords=mesh.coords,
         attr_layout=pipeline.pbr_attr_layout,
         grid_size=res,

@@ -636,7 +636,10 @@ if __name__ == "__main__":
     
     # Move only the small conditioning models to GPU permanently
     if hasattr(pipeline, 'image_cond_model') and pipeline.image_cond_model is not None:
-        pipeline.image_cond_model.cuda().half()
+        pipeline.image_cond_model.cuda()
+        # Internal model needs to be cast to half for precision matching
+        if hasattr(pipeline.image_cond_model, 'model'):
+            pipeline.image_cond_model.model.half()
     
     # DO NOT call pipeline.cuda() - it would move all 8GB of models at once, 
     # leaving no room for 1024-res activations in the 16GB VRAM.

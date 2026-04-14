@@ -404,32 +404,14 @@ def image_to_3d(
     )
     mesh = outputs[0]
     mesh.simplify(16777216) # nvdiffrast limit
-    images = render_utils.render_snapshot(mesh, resolution=1024, r=2, fov=36, nviews=STEPS, envmap=envmap)
+    # images = render_utils.render_snapshot(mesh, resolution=1024, r=2, fov=36, nviews=STEPS, envmap=envmap)
     state = pack_state(latents)
     torch.cuda.empty_cache()
     
     # --- HTML Construction ---
-    # The Stack of 48 Images
-    images_html = ""
-    for m_idx, mode in enumerate(MODES):
-        for s_idx in range(STEPS):
-            # ID Naming Convention: view-m{mode}-s{step}
-            unique_id = f"view-m{m_idx}-s{s_idx}"
-            
-            # Logic: Only Mode 0, Step 0 is visible initially
-            is_visible = (m_idx == DEFAULT_MODE and s_idx == DEFAULT_STEP)
-            vis_class = "visible" if is_visible else ""
-            
-            # Image Source
-            img_base64 = image_to_base64(Image.fromarray(images[mode['render_key']][s_idx]))
-            
-            # Render the Tag
-            images_html += f"""
-                <img id="{unique_id}" 
-                     class="previewer-main-image {vis_class}" 
-                     src="{img_base64}" 
-                     loading="eager">
-            """
+    # The preview generation crashed headless Kaggle OpenGL environments (nvdiffrec_render).
+    # The actual .glb is perfectly intact, so we deliver an empty placeholder preview.
+    images_html = "<div><h3 style='color: white; text-align: center; margin-top: 50px;'>Model generated successfully. Click Extract GLB to download!</h3></div>"
     
     # Button Row HTML
     btns_html = ""
